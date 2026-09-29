@@ -1,0 +1,18 @@
+LSB — PROYECTO FIREBASE
+
+Archivos:
+- index.html: página pública.
+- administracion/index.html: panel administrativo con Firebase Authentication.
+- firestore.rules.txt: reglas que deben sustituir las reglas actuales de Firestore.
+
+IMPORTANTE
+1. No publiques todavía hasta actualizar las reglas de Firestore.
+2. Copia el contenido de firestore.rules.txt en Firebase > Firestore Database > Rules y pulsa Publicar.
+3. El acceso administrativo utiliza la cuenta que ya fue creada en Firebase Authentication.
+4. No hay contraseñas guardadas en estos archivos.
+5. La carga real de logos/galerías requiere Firebase Storage. Esta primera integración deja preparada la interfaz, pero no activa subidas de imágenes hasta configurar Storage.
+6. Prueba los archivos desde un servidor web (GitHub Pages o localhost), no mediante file://.
+
+Documento principal de datos:
+- config/estado: modo, horario y aviso.
+- site/content: información institucional y contenido general.
