@@ -1,0 +1,28 @@
+name: Probar GitHub App LSB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prueba:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generar token de la GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.LSB_GITHUB_APP_ID }}
+          private-key: ${{ secrets.LSB_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: liceo-san-benito-web
+
+      - name: Comprobar autenticacion
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api /installation/repositories \
+            --jq '.repositories[].full_name'
