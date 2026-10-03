@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#3b4193">
+<title>Prueba Drive V2 · Liceo San Benito</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+:root{--b:#3b4193;--g:#fade70;--a:#1fefe2;--ink:#172033;--mut:#667085;--line:#e5e7eb}
+*{box-sizing:border-box}body{margin:0;background:#f6f7fb;color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+header{background:var(--b);color:#fff;padding:22px 18px}header div,main{max-width:780px;margin:auto}h1{font-size:1.35rem;margin:0 0 5px}header p{margin:0;opacity:.88}
+main{padding:22px 16px}.card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px #0000000d}
+h2{font-size:1.05rem;margin:0 0 12px}label{display:block;font-weight:750;margin:12px 0 6px}
+input{width:100%;padding:12px;border:1px solid #ccd2da;border-radius:10px;background:#fff}
+button{border:0;border-radius:10px;padding:12px 15px;font-weight:800;margin:8px 6px 0 0;cursor:pointer}
+.primary{background:var(--b);color:#fff}.gold{background:var(--g);color:#222}.secondary{background:#eef0f8;color:var(--b)}
+button:disabled{opacity:.5}.status{padding:12px;border-radius:10px;background:#f2f4f7;margin-top:12px;white-space:pre-wrap}.ok{background:#ecfdf3;color:#067647}.bad{background:#fef3f2;color:#b42318}
+.note{font-size:.88rem;color:var(--mut);line-height:1.45}.preview{display:block;max-width:100%;max-height:320px;margin:14px auto 0;border-radius:14px;object-fit:contain;background:#f5f5f5}
+.testbox{border:2px dashed #cfd4dc;border-radius:16px;padding:14px;margin-top:14px;text-align:center}.testbox img{max-width:100%;max-height:350px;object-fit:contain}
+code{word-break:break-all}a{color:var(--b);font-weight:750}
+</style>
+</head>
+<body>
+<header><div><h1>Prueba Google Drive V2 · Liceo San Benito</h1><p>Subida + permiso público automático + prueba de imagen directa.</p></div></header>
+<main>
+<section class="card">
+<h2>1. Conectar</h2>
+<p class="note">Pega solo el ID de cliente OAuth que termina en <code>.apps.googleusercontent.com</code>. Nunca el secreto.</p>
+<label>ID de cliente OAuth</label><input id="cid" type="text" autocomplete="off" placeholder="...apps.googleusercontent.com">
+<button id="connect" class="primary">Conectar Google Drive</button>
+<div id="auth" class="status">Sin conectar.</div>
+</section>
+
+<section class="card">
+<h2>2. Subir y publicar automáticamente</h2>
+<input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+<img id="localPreview" class="preview" hidden alt="Vista previa local">
+<button id="upload" class="gold" disabled>Subir y preparar imagen pública</button>
+<div id="up" class="status">Primero conecta Google Drive.</div>
+</section>
+
+<section id="resultCard" class="card" hidden>
+<h2>3. Prueba de visualización directa</h2>
+<p class="note">Si la imagen aparece dentro del recuadro de abajo, Google está entregando el archivo como imagen. Luego prueba esta misma página en incógnito.</p>
+<div class="testbox">
+  <img id="remoteImg" alt="Imagen servida desde Google Drive">
+  <div id="imgState" class="status">Probando…</div>
+</div>
+<p class="note"><b>ID:</b> <code id="fid"></code></p>
+<p><a id="openDirect" target="_blank" rel="noopener">Abrir dirección directa en otra pestaña</a></p>
+</section>
+</main>
+
+<script>
+const SCOPE='https://www.googleapis.com/auth/drive.file';
+const $=x=>document.getElementById(x);
+let tokenClient, token, selected;
+$('cid').value=localStorage.getItem('lsb_drive_client_id')||'';
+const status=(id,msg,type='')=>{let e=$(id);e.textContent=msg;e.className='status '+type};
+
+$('file').onchange=e=>{
+ selected=e.target.files?.[0]||null;
+ $('localPreview').hidden=!selected;
+ if(selected)$('localPreview').src=URL.createObjectURL(selected);
+ $('upload').disabled=!(token&&selected);
+};
+
+$('connect').onclick=()=>{
+ const cid=$('cid').value.trim();
+ if(!cid.endsWith('.apps.googleusercontent.com')) return status('auth','ID de cliente no válido.','bad');
+ if(!google?.accounts?.oauth2) return status('auth','Espera unos segundos: Google todavía está cargando.','bad');
+ localStorage.setItem('lsb_drive_client_id',cid);
+ tokenClient=google.accounts.oauth2.initTokenClient({
+   client_id:cid, scope:SCOPE,
+   callback:r=>{
+     if(r.error)return status('auth','Autorización rechazada: '+r.error,'bad');
+     token=r.access_token; status('auth','✓ Conectado correctamente con Google Drive.','ok');
+     $('upload').disabled=!selected; status('up',selected?'Lista para subir.':'Selecciona una imagen.');
+   }
+ });
+ tokenClient.requestAccessToken({prompt:'consent'});
+};
+
+async function uploadMultipart(file){
+ const boundary='lsb_'+Date.now();
+ const metadata={name:'LSB_WEB_'+new Date().toISOString().replace(/[:.]/g,'-')+'_'+file.name};
+ const p1=new Blob(['--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n',JSON.stringify(metadata),
+ '\r\n--'+boundary+'\r\nContent-Type: '+(file.type||'application/octet-stream')+'\r\n\r\n']);
+ const p2=new Blob(['\r\n--'+boundary+'--']);
+ const res=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name',{
+   method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'multipart/related; boundary='+boundary},
+   body:new Blob([p1,file,p2])
+ });
+ const data=await res.json(); if(!res.ok)throw new Error(data?.error?.message||'Error al subir'); return data;
+}
+
+async function makePublic(id){
+ const res=await fetch('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'/permissions',{
+   method:'POST',
+   headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+   body:JSON.stringify({type:'anyone',role:'reader'})
+ });
+ const data=await res.json(); if(!res.ok)throw new Error(data?.error?.message||'No se pudo crear el permiso público');
+ return data;
+}
+
+$('upload').onclick=async()=>{
+ if(!token||!selected)return;
+ $('upload').disabled=true;$('resultCard').hidden=true;
+ try{
+   status('up','1/3 Subiendo imagen…');
+   const f=await uploadMultipart(selected);
+   status('up','2/3 Configurando acceso público automáticamente…');
+   await makePublic(f.id);
+   status('up','3/3 Probando visualización directa…');
+   const direct='https://drive.google.com/uc?export=view&id='+encodeURIComponent(f.id);
+   $('fid').textContent=f.id;
+   $('openDirect').href=direct;
+   $('remoteImg').src='';
+   $('imgState').textContent='Probando…';
+   $('imgState').className='status';
+   $('remoteImg').onload=()=>status('imgState','✓ La dirección respondió como imagen. Ahora prueba en incógnito.','ok');
+   $('remoteImg').onerror=()=>status('imgState','La imagen no cargó directamente. Esto indicaría que Drive no es adecuado para servirla en la web.','bad');
+   $('remoteImg').src=direct+'&t='+Date.now();
+   $('resultCard').hidden=false;
+   status('up','✓ Archivo subido y permiso público creado automáticamente.','ok');
+ }catch(err){
+   status('up','Error: '+err.message,'bad');
+ }finally{$('upload').disabled=!(token&&selected)}
+};
+</script>
+</body></html>
