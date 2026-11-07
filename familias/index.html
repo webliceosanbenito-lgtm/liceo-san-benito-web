@@ -9865,12 +9865,6 @@ html[data-theme="dark"] #login.access10 #familywelcome10 .f116-activation-help{c
     const doc=`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Credenciales · San Benito</title><style>${style}\nbody{font-family:Arial,sans-serif;background:#fff;margin:18px}.lsb118-credentials{grid-template-columns:repeat(2,minmax(0,1fr))}@media print{.lsb118-credentials{grid-template-columns:repeat(2,minmax(0,1fr))}}</style></head><body><h2>Credenciales familiares · San Benito</h2><p>Imprime esta hoja y recorta cada credencial. Entrega estas fichas de manera privada. Solo las cuentas pendientes incluyen códigos.</p><div class="lsb118-credentials">${cards.map(card).join('')}</div>
 
 
-<style id="lsb-f2372-familias-visual">
-/* Solo presentación del inicio de sesión. Iconos sin recuadros añadidos. */
-body.loginmode #login .loginbrand .brand-logo,body.loginmode #login .lsbp-brand-icon{border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;border-radius:50%!important;object-fit:contain!important}
-body.loginmode #login .orbit10 img,body.loginmode #login .hero-crest img{border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;object-fit:contain!important}
-body.loginmode #login .localnote{display:none!important}
-</style>
 </body></html>`;
     const url=URL.createObjectURL(new Blob([doc],{type:'text/html;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='Credenciales_Familias_San_Benito.html';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
@@ -17037,4 +17031,12 @@ body.loginmode #login #lsb157-action {
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>
+
+<!-- F237.3: corrección ubicada después de los scripts de la aplicación -->
+<style id="lsb-f2372-familias-visual">
+/* Solo presentación del inicio de sesión. Iconos sin recuadros añadidos. */
+body.loginmode #login .loginbrand .brand-logo,body.loginmode #login .lsbp-brand-icon{border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;border-radius:50%!important;object-fit:contain!important}
+body.loginmode #login .orbit10 img,body.loginmode #login .hero-crest img{border:0!important;padding:0!important;background:transparent!important;box-shadow:none!important;object-fit:contain!important}
+body.loginmode #login .localnote{display:none!important}
+</style>
 </body></html>
