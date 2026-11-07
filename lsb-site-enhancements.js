@@ -1,4 +1,4 @@
-/* LSB F252 — capa pública de estado, secciones, videos y botones de programas.
+/* LSB F253 — capa pública de estado, secciones, videos y botones de programas.
    Lee ÚNICAMENTE la publicación pública de Supabase; no requiere ni almacena credenciales administrativas. */
 (() => {
   'use strict';
@@ -20,7 +20,7 @@
   const style = el('style');
   style.id = 'lsb-f252-public-style';
   style.textContent = `
-  button.program-open[hidden]{display:none!important}
+  button.program-open[hidden],.inside-download[hidden],.program-pdf[hidden],.fake-download[hidden]{display:none!important}
   #inicio[hidden],#oferta[hidden],#identidad[hidden],#horario[hidden],#galeria[hidden],#noticias[hidden],#llegar[hidden],#contacto[hidden],a[hidden]{display:none!important}
   .lsb-f252-videos,.lsb-f252-extras{width:min(1120px,calc(100% - 32px));margin:30px auto;padding:8px 0 20px}
   .lsb-f252-videos h3,.lsb-f252-extras h2{font-size:clamp(24px,4vw,33px);letter-spacing:-.04em;color:#26316f;margin:14px 0 22px}
@@ -118,10 +118,32 @@
       const hasDocument = !!(cfg.documents?.[name]);
       button.hidden = mode==='none' || (mode==='auto' && !hasInfo && !hasDocument) || opt.hiddenPrograms?.[name]===true;
     });
-    if(opt.showPdfDownloads!==true){
-      document.querySelectorAll('#programPage .inside-download, #programPage a[download], #programPage a[href*=".pdf"], .program-actions a[download]').forEach(b=>{b.hidden=true;b.style.display='none'});
-    }
+    const downloadsAllowed=opt.showPdfDownloads===true;
+    document.querySelectorAll('.inside-download, .program-pdf, .fake-download, .program-download, #programPage a[download], #programPage a[href*=".pdf"], .program-actions a[download], .download-success').forEach(b=>{
+      if(!downloadsAllowed){b.hidden=true;b.style.display='none';}
+      else if(!b.classList.contains('download-success')){b.hidden=false;b.style.removeProperty('display');}
+    });
   }
+  // F253: «Atrás» cierra primero la ficha que está abierta antes de salir del sitio.
+  function installProgramBack(){
+    const program=byId('programPage');
+    if(!program)return;
+    let inHistory=false;
+    document.querySelectorAll('.program-open').forEach(button=>button.addEventListener('click',()=>{
+      if(button.hidden)return;
+      history.pushState({lsbPublicProgram:true},'',location.pathname+location.search+'#programa');inHistory=true;
+    }));
+    function closeViaHistory(){if(inHistory&&history.state?.lsbPublicProgram){history.back();}else{program.hidden=true;program.style.display='none';document.body.style.overflow='';}}
+    for(const id of ['programBack','programClose']){
+      byId(id)?.addEventListener('click',closeViaHistory,{capture:true});
+    }
+    window.addEventListener('popstate',event=>{
+      if(event.state?.lsbPublicProgram)return;
+      inHistory=false;
+      if(!program.hidden){program.hidden=true;program.style.display='none';document.body.style.overflow=''}
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installProgramBack,{once:true});else installProgramBack();
   async function load() {
     const cfg=window.LSB_SITE_BACKEND;
     if (!cfg?.url || !cfg.publishableKey) return;
