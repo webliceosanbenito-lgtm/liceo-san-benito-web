@@ -16959,4 +16959,75 @@ queueMicrotask(()=>{loadSecondary().catch(console.warn);syncDirection();inviteOn
 })();
 </script>
 <!-- PWA Familias independiente, mismo Supabase y sesión local separada -->
+
+<!-- F237: acceso familiar claro, recuperacion institucional y sin marcas de proveedor -->
+<style id="lsb-f237-family-login-clean">
+/* F237: limpiar solo el inicio de sesion del portal de familias. */
+body.loginmode #login .portal-tabs,
+body.loginmode #login .localnote,
+body.loginmode #login .test-access,
+body.loginmode #login #lsb157-action {
+  display:none!important;
+  visibility:hidden!important;
+}
+#lsb-f237-help-overlay{position:fixed;inset:0;z-index:2147483640;background:rgba(13,24,63,.65);display:flex;align-items:center;justify-content:center;padding:18px}
+#lsb-f237-help-overlay .lsb-f237-dialog{max-width:410px;width:100%;background:white;color:#1c2950;border-radius:22px;padding:26px 23px;box-shadow:0 20px 65px rgba(0,0,0,.3);font:15px/1.55 system-ui,sans-serif}
+#lsb-f237-help-overlay h2{font:800 22px/1.2 system-ui,sans-serif;margin:0 0 12px;color:#1c2a56}
+#lsb-f237-help-overlay p{font-size:14px;line-height:1.65;color:#57637c;margin:0 0 15px}
+#lsb-f237-help-overlay .lsb-f237-links{display:flex;flex-direction:column;gap:9px;margin:15px 0}
+#lsb-f237-help-overlay .lsb-f237-links a{display:block;border:1px solid #d7e0f2;border-radius:10px;padding:10px 13px;text-decoration:none!important;color:#324798;font-weight:750;font-size:14px}
+#lsb-f237-help-overlay button{width:100%;border:0;border-radius:11px;padding:12px 15px;background:#3b4193;color:white;font:750 14px system-ui;cursor:pointer}
+</style>
+<script id="lsb-f237-family-login-controller">
+(()=>{
+  'use strict';
+  // No alterar el sistema de autenticacion existente, el registro o la conexion de datos.
+  let scheduled=false;
+  const onLogin=()=>document.body?.classList?.contains('loginmode');
+  function sync(){
+    if(!onLogin())return;
+    const login=document.getElementById('login');if(!login)return;
+    const tab=login.querySelector('.portal-tabs');
+    if(tab){tab.setAttribute('aria-hidden','true');tab.querySelectorAll('button').forEach(b=>b.tabIndex=-1);}
+    const invitation=login.querySelector('#lsb157-action');
+    if(invitation){
+      // Su CSS legado usa display:block!important; hay que reemplazar esa propiedad inline.
+      if(invitation.style.getPropertyValue('display')!=='none')invitation.style.setProperty('display','none','important');
+      invitation.setAttribute('aria-hidden','true');invitation.tabIndex=-1;
+    }
+    const activation=login.querySelector('#lsb19117-activation-access,#lsb-activation-access');
+    if(activation&&activation.textContent!=='¿Primera vez? Activa tu cuenta')activation.textContent='¿Primera vez? Activa tu cuenta';
+    const forgot=login.querySelector('#forgot');
+    if(forgot&&forgot.textContent!=='¿Olvidaste tu contraseña?')forgot.textContent='¿Olvidaste tu contraseña?';
+    const info=login.querySelector('.localnote');
+    if(info){info.hidden=true;info.setAttribute('aria-hidden','true');}
+  }
+  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;sync();});}
+  function help(){
+    if(document.getElementById('lsb-f237-help-overlay'))return;
+    const overlay=document.createElement('div');
+    overlay.id='lsb-f237-help-overlay';overlay.setAttribute('role','presentation');
+    overlay.innerHTML='<div class="lsb-f237-dialog" role="dialog" aria-modal="true" aria-labelledby="lsb-f237-help-title"><h2 id="lsb-f237-help-title">Recuperar acceso familiar</h2><p>Si olvidaste tu contraseña, comunícate con Dirección del Liceo. Por seguridad, verificarán tu identidad antes de restablecer el acceso.</p><p>Las cuentas familiares usan un usuario institucional; no se envía automáticamente un código de recuperación a un correo personal.</p><div class="lsb-f237-links"><a href="tel:+50237199069">Llamar al 3719-9069</a><a href="tel:+50237058145">Llamar al 3705-8145</a><a href="mailto:sanbenitoliceo@gmail.com?subject=Recuperaci%C3%B3n%20de%20acceso%20familiar">Escribir al Liceo</a></div><button type="button" id="lsb-f237-help-close">Entendido</button></div>';
+    const close=()=>{overlay.remove();document.removeEventListener('keydown',escape)};
+    const escape=e=>{if(e.key==='Escape')close()};
+    overlay.addEventListener('click',e=>{if(e.target===overlay||e.target.id==='lsb-f237-help-close')close()});
+    document.addEventListener('keydown',escape);
+    document.body.appendChild(overlay);
+    overlay.querySelector('button').focus();
+  }
+  // Captura en window ANTES del listener antiguo de document: evita aviso tecnico o falso envio.
+  window.addEventListener('click',e=>{
+    const b=e.target?.closest?.('#login #forgot');
+    if(!b||!onLogin())return;
+    e.preventDefault();e.stopImmediatePropagation();help();
+  },true);
+  function init(){
+    const login=document.getElementById('login');
+    if(!login){schedule();return;}
+    new MutationObserver(schedule).observe(login,{subtree:true,childList:true});
+    schedule();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+</script>
 </body></html>
