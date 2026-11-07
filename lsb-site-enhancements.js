@@ -1,4 +1,4 @@
-/* LSB F253 — capa pública de estado, secciones, videos y botones de programas.
+/* LSB F254 — capa pública de estado, secciones, videos y botones de programas.
    Lee ÚNICAMENTE la publicación pública de Supabase; no requiere ni almacena credenciales administrativas. */
 (() => {
   'use strict';
@@ -33,29 +33,63 @@
   .lsb-f252-extra-card p{font-size:16px;line-height:1.75;white-space:pre-line;color:#54617d}
   @media(max-width:720px){.lsb-f252-extra-card{grid-template-columns:1fr}.lsb-f252-video-grid{grid-template-columns:1fr}}
   `;
+  style.textContent+=`
+.lsb-f254-contact-public{padding:18px 20px;border:1px solid #e5e9f3;border-radius:19px;background:#fff;width:min(100%,1050px);margin:22px auto;}
+.lsb-f254-contact-public h3{color:#3b4193;margin:0 0 14px;font-size:20px}.lsb-f254-links{display:flex;gap:10px;flex-wrap:wrap}.lsb-f254-links a{background:#f1f5ff;border:1px solid #dce2f4;border-radius:11px;padding:12px 16px;color:#253577;font-weight:750;text-decoration:none}.lsb-f254-links a:hover{background:#e3f8f8}.lsb-f254-extra-btn{display:inline-flex;margin-top:16px;background:#3b4193;color:#fff!important;padding:11px 19px;border-radius:11px;font-weight:800;text-decoration:none}
+`;
   document.head.append(style);
 
-  let stateObserver;
-  function paintStatus(status) {
-    if (!status || !['open','closed'].includes(status.mode)) return;
-    const isOpen = status.mode === 'open';
-    const badge = byId('badge'), title = byId('statusTitle'), note = byId('statusNote');
-    const text = isOpen ? 'ABIERTO' : 'CERRADO';
-    const heading = isOpen ? 'El Liceo se encuentra abierto.' : 'El Liceo se encuentra cerrado.';
-    const desc = String(status.note || (isOpen ? 'Puedes comunicarte con nosotros durante el horario de atención.' : 'Consulta el horario de atención para planificar tu visita.'));
-    if (badge && badge.textContent !== text) badge.textContent = text;
-    if (badge) { badge.style.background = isOpen ? '#dcfaef' : '#ffe8e8'; badge.style.color = isOpen ? '#087650' : '#b43131'; }
-    if (title && title.textContent !== heading) title.textContent = heading;
-    if (note && note.textContent !== desc) note.textContent = desc;
+  // Horarios editables: varias jornadas por día y fechas extraordinarias.
+  let stateObserver, statusInterval;
+  const dayNames=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+  const formatClock=(value)=>{const m=String(value).match(/^(\d{2}):(\d{2})$/);if(!m)return String(value);const h=+m[1];return (h%12||12)+':'+m[2]+(h<12?' a. m.':' p. m.');};
+  const slotsOf=(items)=>Array.isArray(items)?items.map(x=>Array.isArray(x)?{open:x[0],close:x[1]}:x).filter(x=>x&&/^\d{2}:\d{2}$/.test(x.open)&&/^\d{2}:\d{2}$/.test(x.close)&&x.open<x.close).sort((a,b)=>a.open.localeCompare(b.open)):[];
+  const slotsText=(slots)=>slots.length?slots.map(x=>formatClock(x.open)+' – '+formatClock(x.close)).join(' · '):'Cerrado';
+  function nowGuatemala(){
+    const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Guatemala',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date());
+    const obj=Object.fromEntries(parts.map(p=>[p.type,p.value]));const map={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};return {weekday:map[obj.weekday],date:obj.year+'-'+obj.month+'-'+obj.day,time:obj.hour+':'+obj.minute};
   }
-  function setStatus(status) {
-    stateObserver?.disconnect();
-    if (!status || status.mode === 'auto') return;
-    const nodes = [byId('badge'),byId('statusTitle'),byId('statusNote')].filter(Boolean);
-    if (!nodes.length) return;
-    paintStatus(status);
-    stateObserver = new MutationObserver(() => paintStatus(status));
-    nodes.forEach(node => stateObserver.observe(node,{childList:true,subtree:true,characterData:true}));
+  function paintStatus(status){
+    const badge=byId('badge'), title=byId('statusTitle'), note=byId('statusNote');
+    if(!status || !badge || !title || !note)return;
+    const mode=status.mode||'auto',manual=mode==='open'||mode==='closed';
+    if(!manual && !status.schedule)return; // Conserva el modo original si todavía no se configuró un horario.
+    let open=false,desc='',heading='';
+    const g=nowGuatemala();let todaySlots=[];
+    if(manual){
+      open=mode==='open';desc=String(status.note||'').trim()||(open?'Puedes comunicarte con nosotros durante el horario de atención.':'Consulta nuestros horarios para planificar tu visita.');
+    }else{
+      const schedule=status.schedule||{};
+      const special=Array.isArray(status.specialDates)?status.specialDates.find(s=>s.date===g.date):null;
+      todaySlots=slotsOf(special?special.slots:schedule[dayNames[g.weekday]]);
+      const range=todaySlots.find(s=>g.time>=s.open&&g.time<s.close);
+      open=Boolean(range);
+      if(range)desc='Atendemos hasta las '+formatClock(range.close)+'.';
+      else{const upcoming=todaySlots.find(s=>g.time<s.open);desc=upcoming?'Abriremos hoy a las '+formatClock(upcoming.open)+'.':'No hay más atención programada para hoy.';}
+      desc+=' Horario de hoy: '+slotsText(todaySlots)+'.';
+      if(special)desc='Horario especial. '+desc;
+      if(status.note && String(status.note).trim())desc=String(status.note).trim();
+      const rows=[...document.querySelectorAll('#horario .day')];
+      rows.forEach((row,i)=>{const key=dayNames[(i+1)%7];const slot=slotsOf(schedule[key]);
+        const cell=row.querySelector('span');if(cell){const value=slotsText(slot);if(cell.textContent!==value)cell.textContent=value;}
+        row.classList.toggle('hoy',i===((g.weekday+6)%7));
+      });
+    }
+    heading=open?'El Liceo se encuentra abierto.':'El Liceo se encuentra cerrado.';
+    const nextBadge=open?'ABIERTO':'CERRADO';if(badge.textContent!==nextBadge)badge.textContent=nextBadge;
+    badge.style.background=open?'#dcfaef':'#ffe8e8';badge.style.color=open?'#087650':'#b43131';
+    if(title.textContent!==heading)title.textContent=heading;
+    if(note.textContent!==desc)note.textContent=desc;
+  }
+  function setStatus(status){
+    stateObserver?.disconnect();if(statusInterval)clearInterval(statusInterval);
+    if(!status || status.mode==='auto' && !status.schedule)return;
+    const nodes=[byId('badge'),byId('statusTitle'),byId('statusNote')].filter(Boolean);
+    if(!nodes.length)return;
+    let busy=false;const repaint=()=>{if(busy)return;busy=true;try{paintStatus(status)}finally{busy=false}};
+    repaint();stateObserver=new MutationObserver(repaint);
+    nodes.forEach(node=>stateObserver.observe(node,{childList:true,subtree:true,characterData:true}));
+    statusInterval=setInterval(repaint,30000);
   }
   function setVisibility(cfg) {
     const hidden = cfg.sectionVisibility || {};
@@ -101,13 +135,38 @@
     for(const item of good){
       const card = el('article','lsb-f252-extra-card');
       const body = el('div');body.append(el('h2','',item.title));
-      if(item.body) body.append(el('p','',item.body));card.append(body);
+      if(item.body) body.append(el('p','',item.body));const buttonUrl=validLink(item.buttonUrl);if(buttonUrl&&item.buttonText){const link=el('a','lsb-f254-extra-btn',item.buttonText);link.href=buttonUrl;link.target='_blank';link.rel='noopener noreferrer';body.append(link)}card.append(body);
       const image = validLink(item.image);
       if(image){const pic=el('img');pic.src=image;pic.alt=item.title;pic.loading='lazy';card.append(pic)}
       wrap.append(card);
     }
     const anchor = byId('contacto');if(anchor)anchor.before(wrap);else document.body.append(wrap);
   }
+
+  function setContactAndRoutes(cfg){
+    byId('lsb-f254-contacts')?.remove();byId('lsb-f254-routes')?.remove();
+    const contacts=cfg.contactExtras||{}, phones=Array.isArray(contacts.phones)?contacts.phones:[], socials=Array.isArray(contacts.socials)?contacts.socials:[];
+    const contactHost=byId('contacto');
+    if(contactHost && (phones.some(x=>x.number)||socials.some(x=>x.name&&x.url))){
+      const pane=el('div','lsb-f254-contact-public');pane.id='lsb-f254-contacts';pane.append(el('h3','','Otros medios de contacto'));
+      const links=el('div','lsb-f254-links');pane.append(links);
+      for(const phone of phones){const digit=String(phone.number||'').replace(/[^0-9]/g,'');if(digit.length<8||digit.length>15)continue;
+       const label=String(phone.display||phone.number);const n=phone.whatsapp===false?null:el('a','','WhatsApp · '+label);if(n){n.href='https://wa.me/'+(digit.length===8?'502'+digit:digit);n.target='_blank';n.rel='noopener noreferrer';links.append(n)}
+       if(phone.call!==false){const a=el('a','','Llamar · '+label);a.href='tel:+'+(digit.length===8?'502'+digit:digit);links.append(a)}
+      }
+      for(const social of socials){const link=validLink(social.url);if(!link||!String(social.name||'').trim())continue;const a=el('a','',social.name);a.href=link;a.target='_blank';a.rel='noopener noreferrer';links.append(a)}
+      contactHost.append(pane);
+    }
+    const mainNum=String(contacts.primaryWhatsapp||'').replace(/\D/g,'');
+    if(mainNum.length>=8&&mainNum.length<=15){const target=document.querySelector('#contacto a[href*="wa.me/"]');if(target){target.href='https://wa.me/'+(mainNum.length===8?'502'+mainNum:mainNum)}}
+    const placeHost=byId('llegar'),places=Array.isArray(cfg.routeExtras)?cfg.routeExtras:[];
+    if(placeHost && places.some(x=>x.name&&x.mapsUrl)){
+      const pane=el('div','lsb-f254-contact-public');pane.id='lsb-f254-routes';pane.append(el('h3','','Otros puntos de referencia'));const links=el('div','lsb-f254-links');pane.append(links);
+      for(const item of places){const url=validLink(item.mapsUrl);if(!url||!String(item.name||'').trim())continue;const a=el('a','',item.name);a.href=url;a.rel='noopener noreferrer';a.target='_blank';links.append(a)}
+      placeHost.append(pane);
+    }
+  }
+
   function setPrograms(cfg) {
     const opt = cfg.programOptions || {};
     const mode = opt.showProgramButtons || 'auto';
@@ -158,6 +217,7 @@
       setVideos(value.gallery);
       setCustomSections(value);
       setPrograms(value);
+      setContactAndRoutes(value);
     } catch(error) {
       console.warn('LSB: se conserva el contenido público existente; no se pudo cargar la extensión.',error?.message || error);
     }
