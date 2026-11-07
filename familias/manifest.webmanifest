@@ -1,0 +1,37 @@
+{
+  "id": "/familias/",
+  "name": "LSB Familias · Liceo San Benito",
+  "short_name": "LSB Familias",
+  "description": "Acceso exclusivo de madres, padres y encargados a la información académica del Liceo Mixto Particular San Benito.",
+  "start_url": "/familias/",
+  "scope": "/familias/",
+  "display": "standalone",
+  "background_color": "#f5f7fd",
+  "theme_color": "#3b4193",
+  "lang": "es-GT",
+  "categories": [
+    "education"
+  ],
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "prefer_related_applications": false
+}
